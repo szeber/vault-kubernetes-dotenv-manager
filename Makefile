@@ -8,7 +8,7 @@ ARCH?=amd64
 
 build:
 	go mod download
-	CGO_ENABLED=0 go build -o vault_kubernetes_dotenv_manager main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o vault_kubernetes_dotenv_manager main.go
 
 dockerBuild:
 	@echo "version: $(PREFIX):$(TAG)"
