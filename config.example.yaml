@@ -1,0 +1,15 @@
+dataDir: /data-dir # The path to the data directory to use
+vaultUrl: https://vault.example.com:8200 # The URL for the vault server
+tokenPath: /var/run/secrets/kubernetes.io/serviceaccount/token # Optional. The path to the file storing the token
+namespace: default # The kubernetes namespace to use
+role: kubernetes # The vault role to use
+vaultAuthMethodPath: kubernetes # The auth path where the kubernetes authentication method is mounted
+
+secrets:
+- name: dotenv # Informational name of the secret - used in the logs
+  origin: file # file or vault. Defaults to vault if not set
+  format: file # file or dotenv. File stores each value in the secret in a separate file with the file name being the key, and the value is the content
+  source: kv/data/dotenv # The source path for the secret. For vault the URL path for the data, for file it's the path to the file
+  destination: /dotenv/.env # The destination path for the secret. For file formats it's a directory to place the files in, for dotenv format the file to store the data in
+  secretBaseKey: data # The base key to use in the secret. Should be "data" for kv type secrets. Optional, defaults to empty string
+  mapping: {} # Maping for the secret values. Key is the name that the secret will be saved as, value is the original value. Optional, defaults to no mapping

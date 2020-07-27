@@ -1,0 +1,7 @@
+/.idea
+/config.yaml
+/data-dir
+/destinations
+/sample
+/serviceaccount
+/vault_kubernetes_dotenv_manager

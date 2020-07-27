@@ -1,0 +1,1 @@
+# Vault kubernetes dotenv manager
