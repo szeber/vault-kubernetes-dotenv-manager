@@ -8,6 +8,8 @@ import (
 	"github.com/szeber/vault-kubernetes-dotenv-manager/helper"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/secret_manager"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var configPath = flag.String("config", "config.yaml", "The path to the config file")
@@ -33,8 +35,23 @@ func main() {
 	case constants.ModePopulate:
 		secret_manager.PopulateSecrets(appConfig)
 	case constants.ModeKeepAlive:
+		revokeAuthLeaseOnQuit(appConfig)
 		secret_manager.KeepSecretsAlive(appConfig, *httpPort)
 	default:
 		glog.Exit("Invalid operating mode: " + *mode)
 	}
+}
+
+func revokeAuthLeaseOnQuit(appConfig config.Config) {
+	sigs := make(chan os.Signal, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		glog.Info("Signal received, shutting down: ", sig)
+		glog.Info("Revoking auth lease")
+		secret_manager.RevokeAuthLease(appConfig)
+		os.Exit(0)
+	}()
 }

@@ -4,10 +4,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/hashicorp/vault/api"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/config"
-	"github.com/szeber/vault-kubernetes-dotenv-manager/constants"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 )
@@ -21,49 +19,37 @@ type AuthConfig struct {
 }
 
 func LoginWithAppConfig(appConfig config.Config) (*api.Client, int) {
-	authToken, err := ioutil.ReadFile(appConfig.TokenPath)
-
-	if err != nil {
-		glog.Error("Failed to load the service account token: ", err)
-		os.Exit(constants.ExitCodeConfigError)
-	}
-
-	apiClient, leaseDuration, err := Login(AuthConfig{
-		Url:                 appConfig.VaultUrl,
-		Namespace:           appConfig.Namespace,
-		KubeAuthRole:        appConfig.Role,
-		KubeAuthPath:        appConfig.VaulAuthMethodPath,
-		ServiceAccountToken: string(authToken),
-	})
+	apiClient, leaseDuration, err := Login(getAuthConfigFromAppConfig(appConfig))
 
 	if nil != err {
-		glog.Error("Failed to log in to Vault")
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("Failed to log in to Vault")
 	}
 
 	return apiClient, leaseDuration
 }
 
 func Login(authConfig AuthConfig) (*api.Client, int, error) {
-	glog.Infof("Connecting to Vault at %s", authConfig.Url)
-
-	httpClient := buildHTTPClient(authConfig.Url)
-
-	apiConfig := &api.Config{
-		Address:    authConfig.Url,
-		HttpClient: httpClient,
-	}
-
-	client, err := api.NewClient(apiConfig)
+	apiClient, err := getApiClient(authConfig)
 
 	if err != nil {
-		glog.Errorf("ERROR: failed to connect to Vault at %s: %v", authConfig.Url, err)
 		return nil, 0, err
 	}
 
-	if authConfig.Namespace != "" {
-		client.SetNamespace(authConfig.Namespace)
+	result, err := sendLoginRequest(apiClient, authConfig)
+
+	if nil != err {
+		return nil, 0, err
 	}
+
+	glog.V(1).Infof("Login token duration: %d", result.Auth.LeaseDuration)
+	glog.Info("Login successful")
+
+	apiClient.SetToken(result.Auth.ClientToken)
+
+	return apiClient, result.Auth.LeaseDuration, nil
+}
+
+func sendLoginRequest(apiClient *api.Client, authConfig AuthConfig) (*api.Secret, error) {
 	body := map[string]interface{}{
 		"role": authConfig.KubeAuthRole,
 		"jwt":  authConfig.ServiceAccountToken,
@@ -78,38 +64,56 @@ func Login(authConfig AuthConfig) (*api.Client, int, error) {
 		len(authConfig.ServiceAccountToken),
 	)
 
-	req := client.NewRequest("POST", loginPath)
-	err = req.SetJSONBody(body)
+	req := apiClient.NewRequest("POST", loginPath)
+	err := req.SetJSONBody(body)
 
 	if err != nil {
 		glog.Error("ERROR: Failed to set json body: ", err)
 	}
 
-	resp, err := client.RawRequest(req)
+	resp, err := apiClient.RawRequest(req)
 	if err != nil {
 		glog.Errorf("ERROR: failed to login with Vault %s", req.URL.String())
 		glog.Error(err)
-		return nil, 0, err
+		return nil, err
 	}
 
 	if respErr := resp.Error(); respErr != nil {
 		glog.Errorf("ERROR: api error: %v", respErr)
-		return nil, 0, respErr
+		return nil, respErr
 	}
 
 	var result api.Secret
 	if err := resp.DecodeJSON(&result); err != nil {
 		glog.Errorf("ERROR: failed to decode JSON response: %v", err)
-		return nil, 0, err
+		return nil, err
 	}
 
-	glog.V(1).Infof("Login token duration; %d", result.LeaseDuration)
-	glog.Info("Login successful")
+	return &result, nil
+}
 
-	client.SetToken(result.Auth.ClientToken)
+func getApiClient(authConfig AuthConfig) (*api.Client, error) {
+	glog.Infof("Connecting to Vault at %s", authConfig.Url)
 
-	leaseDuration := result.LeaseDuration
-	return client, leaseDuration, nil
+	httpClient := buildHTTPClient(authConfig.Url)
+
+	apiConfig := &api.Config{
+		Address:    authConfig.Url,
+		HttpClient: httpClient,
+	}
+
+	apiClient, err := api.NewClient(apiConfig)
+
+	if err != nil {
+		glog.Errorf("ERROR: failed to connect to Vault at %s: %v", authConfig.Url, err)
+		return nil, err
+	}
+
+	if authConfig.Namespace != "" {
+		apiClient.SetNamespace(authConfig.Namespace)
+	}
+
+	return apiClient, nil
 }
 
 func buildHTTPClient(url string) *http.Client {
@@ -119,4 +123,34 @@ func buildHTTPClient(url string) *http.Client {
 	}
 	httpClient := &http.Client{}
 	return httpClient
+}
+
+func getAuthConfigFromAppConfig(appConfig config.Config) AuthConfig {
+	authToken, err := ioutil.ReadFile(appConfig.TokenPath)
+
+	if err != nil {
+		glog.Exit("Failed to load the service account token: ", err)
+	}
+
+	return AuthConfig{
+		Url:                 appConfig.VaultUrl,
+		Namespace:           appConfig.Namespace,
+		KubeAuthRole:        appConfig.Role,
+		KubeAuthPath:        appConfig.VaulAuthMethodPath,
+		ServiceAccountToken: string(authToken),
+	}
+}
+
+func GetClientWithToken(appConfig config.Config, token string) (*api.Client, error) {
+	authConfig := getAuthConfigFromAppConfig(appConfig)
+
+	apiClient, err := getApiClient(authConfig)
+
+	if err != nil {
+		return nil, err
+	}
+
+	apiClient.SetToken(token)
+
+	return apiClient, nil
 }

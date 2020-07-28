@@ -10,19 +10,20 @@ import (
 	"github.com/szeber/vault-kubernetes-dotenv-manager/formatter"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/helper"
 	"io/ioutil"
-	"os"
 	"path"
 	"time"
 )
 
 func PopulateSecrets(appConfig config.Config) {
-	apiClient := getClient(appConfig)
+	apiClient := getClient(appConfig, "")
 
 	glog.Info("Starting secret population")
 	data.Clear(appConfig.DataDir)
 
 	dataToSave := data.SavedData{
 		CreationTimestamp: int(time.Now().UTC().Unix()),
+		LoginToken:        apiClient.Token(),
+		AuthLeaseDuration: apiClientAuthLifetimeSeconds,
 	}
 
 	for _, definition := range appConfig.Secrets {
@@ -70,19 +71,17 @@ func getDataForSubKey(sourceData map[string]interface{}, key string) map[string]
 		return sourceData
 	}
 
-	data, ok := sourceData[key]
+	subKeyData, ok := sourceData[key]
 
 	if !ok {
-		glog.Error("Failed to get data from secret under base key " + key)
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("Failed to get data from secret under base key " + key)
 	}
 
-	switch v := data.(type) {
+	switch v := subKeyData.(type) {
 	case map[string]interface{}:
 		return v
 	default:
-		glog.Error("Invalid type for secret data")
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("Invalid type for secret data")
 	}
 
 	return nil
@@ -90,15 +89,13 @@ func getDataForSubKey(sourceData map[string]interface{}, key string) map[string]
 
 func getSecretFromFile(definition config.SecretDefinition) map[string]string {
 	if !helper.FileExists(definition.Source) {
-		glog.Error("Source doesn't exist for secret: " + definition.Source)
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("Source doesn't exist for secret: " + definition.Source)
 	}
 
 	fileData, err := ioutil.ReadFile(definition.Source)
 
 	if err != nil {
-		glog.Error("Failed to read secret from source file: " + definition.Source)
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("Failed to read secret from source file: " + definition.Source)
 	}
 
 	return map[string]string{

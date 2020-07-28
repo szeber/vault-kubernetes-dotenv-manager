@@ -26,7 +26,7 @@ func FormatSecret(secretData map[string]string, definition config.SecretDefiniti
 
 func formatDotenvSecret(secretData map[string]string, definition config.SecretDefinition) {
 	headerText := "Secret source: " + definition.Name
-	stringToWrite := strings.Repeat("#", len(headerText)+4) + "\n# " + headerText + " #\n" + strings.Repeat("#", len(headerText)+4) + "\n"
+	stringToWrite := "\n" + strings.Repeat("#", len(headerText)+4) + "\n# " + headerText + " #\n" + strings.Repeat("#", len(headerText)+4) + "\n"
 
 	if !helper.FileExists(path.Dir(definition.Destination)) {
 		err := os.MkdirAll(path.Dir(definition.Destination), 0755)
@@ -60,14 +60,12 @@ func formatFileSecret(secretData map[string]string, definition config.SecretDefi
 		err := os.MkdirAll(definition.Destination, 0755)
 
 		if err != nil {
-			glog.Error("Failed to create destination directory for secret " + definition.Name)
-			os.Exit(constants.ExitCodeConfigError)
+			glog.Exit("Failed to create destination directory for secret " + definition.Name)
 		}
 	}
 
 	if !helper.IsDir(definition.Destination) {
-		glog.Error("The destination is not a directory for secret " + definition.Name)
-		os.Exit(constants.ExitCodeConfigError)
+		glog.Exit("The destination is not a directory for secret " + definition.Name)
 	}
 
 	for key, value := range mapSecretData(secretData, definition) {
@@ -90,8 +88,7 @@ func mapSecretData(secretData map[string]string, definition config.SecretDefinit
 		mappedValue, ok := secretData[value]
 
 		if !ok {
-			glog.Error("Mapping failed in secret " + definition.Name + ". Key " + value + " doesn't exist in secret data")
-			os.Exit(constants.ExitCodeConfigError)
+			glog.Exit("Mapping failed in secret " + definition.Name + ". Key " + value + " doesn't exist in secret data")
 		}
 
 		newSecretData[key] = mappedValue

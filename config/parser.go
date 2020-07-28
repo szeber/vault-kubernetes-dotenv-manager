@@ -10,13 +10,14 @@ import (
 )
 
 type Config struct {
-	DataDir            string             `yaml:"dataDir"`
-	VaultUrl           string             `yaml:"vaultUrl"`
-	TokenPath          string             `yaml:"tokenPath"`
-	Namespace          string             `yaml:"namespace"`
-	Role               string             `yaml:"role"`
-	VaulAuthMethodPath string             `yaml:"vaultAuthMethodPath"`
-	Secrets            []SecretDefinition `yaml:"secrets"`
+	DataDir               string             `yaml:"dataDir"`
+	VaultUrl              string             `yaml:"vaultUrl"`
+	TokenPath             string             `yaml:"tokenPath"`
+	Namespace             string             `yaml:"namespace"`
+	Role                  string             `yaml:"role"`
+	VaulAuthMethodPath    string             `yaml:"vaultAuthMethodPath"`
+	RevokeAuthLeaseOnQuit bool               `yaml:"revokeAuthLeaseOnQuit"`
+	Secrets               []SecretDefinition `yaml:"secrets"`
 }
 
 type SecretDefinition struct {
@@ -35,22 +36,19 @@ func LoadConfig(configPath string) Config {
 	config := Config{}
 
 	if !helper.FileExists(configPath) {
-		glog.Error("Config file does not exist")
-		os.Exit(constants.ExitCodeConfigParseError)
+		glog.Exit("Config file does not exist")
 	}
 
 	yamlContents, err := ioutil.ReadFile(configPath)
 
 	if err != nil {
-		glog.Error("Failed to load the config file: ", err)
-		os.Exit(constants.ExitCodeConfigParseError)
+		glog.Exit("Failed to load the config file: ", err)
 	}
 
 	err = yaml.Unmarshal(yamlContents, &config)
 
 	if err != nil {
-		glog.Error("Failed to parse the config file as YAML. ", err)
-		os.Exit(constants.ExitCodeConfigParseError)
+		glog.Exit("Failed to parse the config file as YAML. ", err)
 	}
 
 	populateDefaults(&config)
@@ -96,7 +94,7 @@ func validateConfig(config Config) {
 		for i := range errors {
 			glog.Error(errors[i])
 		}
-		os.Exit(constants.ExitCodeConfigParseError)
+		os.Exit(1)
 	}
 }
 
