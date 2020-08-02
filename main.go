@@ -13,10 +13,13 @@ import (
 )
 
 var configPath = flag.String("config", "config.yaml", "The path to the config file")
-var mode = flag.String("mode", "", "The operating mode. Required. Valid values are 'populate' or 'keep-alive'")
+var mode = flag.String("mode", "", "The operating mode. Optional. Valid values are 'populate' or 'keep-alive'. Defaults to doing both operations")
 var httpPort = flag.Int("http-port", 8000, "The HTTP port for liveness and readiness checks")
 
 func main() {
+	// Set default values
+	flag.Set("logtostderr", "true")
+	flag.Set("stderrthreshold", "Info")
 	flag.Parse()
 
 	if !helper.StringInSlice(constants.ValidModes[:], *mode) {
@@ -32,6 +35,10 @@ func main() {
 	appConfig := config.LoadConfig(*configPath)
 
 	switch *mode {
+	case "":
+		secret_manager.PopulateSecrets(appConfig)
+		revokeAuthLeaseOnQuit(appConfig)
+		secret_manager.KeepSecretsAlive(appConfig, *httpPort)
 	case constants.ModePopulate:
 		secret_manager.PopulateSecrets(appConfig)
 	case constants.ModeKeepAlive:
@@ -43,6 +50,10 @@ func main() {
 }
 
 func revokeAuthLeaseOnQuit(appConfig config.Config) {
+	if !appConfig.RevokeAuthLeaseOnQuit {
+		return
+	}
+
 	sigs := make(chan os.Signal, 1)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
