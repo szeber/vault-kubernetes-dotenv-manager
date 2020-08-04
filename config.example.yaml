@@ -13,3 +13,4 @@ secrets:
   destination: /dotenv/.env # The destination path for the secret. For file formats it's a directory to place the files in, for dotenv format the file to store the data in
   secretBaseKey: data # The base key to use in the secret. Should be "data" for kv type secrets. Optional, defaults to empty string
   mapping: {} # Maping for the secret values. Key is the name that the secret will be saved as, value is the original value. Optional, defaults to no mapping
+  decoders: [] # Decoders to use for decoding the secrets. They will be used in the order they are specified in. Optional, can be empty if the secrets are not encoded. Supported values: "base64".

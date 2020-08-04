@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/golang/glog"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/constants"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/helper"
@@ -28,6 +29,7 @@ type SecretDefinition struct {
 	Format        string            `yaml:"format"`
 	SecretBaseKey string            `yaml:"secretBaseKey"`
 	Mapping       map[string]string `yaml:"mapping"`
+	Decoders      []string          `yaml:"decoders"`
 }
 
 func LoadConfig(configPath string) Config {
@@ -117,25 +119,31 @@ func prepareAndValidateDataDir(dataDir string, errors *[]string) {
 
 func validateSecret(secret *SecretDefinition, i int, errors *[]string) {
 	if "" == secret.Name {
-		*errors = append(*errors, "No name for secret #"+string(i))
+		*errors = append(*errors, fmt.Sprintf("No name for secret #%d", i))
 	}
 
 	if "" == secret.Source {
-		*errors = append(*errors, "No source for secret #"+string(i))
+		*errors = append(*errors, fmt.Sprintf("No source for secret #%d", i))
 	}
 
 	if "" == secret.Destination {
-		*errors = append(*errors, "No destination for secret #"+string(i))
+		*errors = append(*errors, fmt.Sprintf("No destination for secret #%d", i))
 	}
 
 	if "" == secret.Origin {
 		secret.Origin = constants.OriginVault
 	} else if !helper.StringInSlice(constants.ValidOrigins[:], secret.Origin) {
-		*errors = append(*errors, "Invalid origin for secret #"+string(i)+": "+secret.Origin)
+		*errors = append(*errors, fmt.Sprintf("Invalid origin for secret #%d: %s", i, secret.Origin))
 	}
 
 	if !helper.StringInSlice(constants.ValidFormats[:], secret.Format) {
-		*errors = append(*errors, "Invalid format #"+string(i)+": "+secret.Format)
+		*errors = append(*errors, fmt.Sprintf("Invalid format #%d: %s", i, secret.Format))
+	}
+
+	for _, decoder := range secret.Decoders {
+		if !helper.StringInSlice(constants.ValidDecoders[:], decoder) {
+			*errors = append(*errors, fmt.Sprintf("Invalid decoder #%d: %s", i, decoder))
+		}
 	}
 }
 

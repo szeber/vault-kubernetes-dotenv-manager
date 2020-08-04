@@ -4,6 +4,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/config"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/constants"
+	"github.com/szeber/vault-kubernetes-dotenv-manager/decoder"
 	"github.com/szeber/vault-kubernetes-dotenv-manager/helper"
 	"io/ioutil"
 	"os"
@@ -14,17 +15,23 @@ import (
 
 func FormatSecret(secretData map[string]string, definition config.SecretDefinition) {
 	glog.Info("Writing secret " + definition.Name)
+	dec, err := decoder.New(definition)
+
+	if nil != err {
+		glog.Exit("Failed to create decoder for secret " + definition.Name)
+	}
+
 	switch definition.Format {
 	case constants.FormatFile:
-		formatFileSecret(secretData, definition)
+		formatFileSecret(secretData, definition, dec)
 	case constants.FormatDotenv:
-		formatDotenvSecret(secretData, definition)
+		formatDotenvSecret(secretData, definition, dec)
 	default:
 		glog.Exit("Invalid format: " + definition.Format)
 	}
 }
 
-func formatDotenvSecret(secretData map[string]string, definition config.SecretDefinition) {
+func formatDotenvSecret(secretData map[string]string, definition config.SecretDefinition, dec *decoder.Decoder) {
 	headerText := "Secret source: " + definition.Name
 	stringToWrite := "\n" + strings.Repeat("#", len(headerText)+4) + "\n# " + headerText + " #\n" + strings.Repeat("#", len(headerText)+4) + "\n"
 
@@ -37,7 +44,13 @@ func formatDotenvSecret(secretData map[string]string, definition config.SecretDe
 	}
 
 	for key, value := range mapSecretData(secretData, definition) {
-		stringToWrite = stringToWrite + key + "=" + strconv.Quote(value) + "\n"
+		decodedValue, err := dec.DecodeString(value)
+
+		if nil != err {
+			glog.Exitf("Failed to decode value for %s in secret %s: %v", key, definition.Name, err)
+		}
+
+		stringToWrite = stringToWrite + key + "=" + strconv.Quote(string(decodedValue)) + "\n"
 	}
 
 	f, err := os.OpenFile(definition.Destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -55,7 +68,7 @@ func formatDotenvSecret(secretData map[string]string, definition config.SecretDe
 	}
 }
 
-func formatFileSecret(secretData map[string]string, definition config.SecretDefinition) {
+func formatFileSecret(secretData map[string]string, definition config.SecretDefinition, dec *decoder.Decoder) {
 	if !helper.FileExists(definition.Destination) {
 		err := os.MkdirAll(definition.Destination, 0755)
 
@@ -69,7 +82,13 @@ func formatFileSecret(secretData map[string]string, definition config.SecretDefi
 	}
 
 	for key, value := range mapSecretData(secretData, definition) {
-		err := ioutil.WriteFile(definition.Destination+"/"+key, []byte(value), 0644)
+		decodedValue, err := dec.DecodeString(value)
+
+		if nil != err {
+			glog.Exitf("Failed to decode value for %s in secret %s: %v", key, definition.Name, err)
+		}
+
+		err = ioutil.WriteFile(definition.Destination+"/"+key, decodedValue, 0644)
 
 		if err != nil {
 			glog.Exit("Failed to write file "+key+" for secret "+definition.Name+": ", err)
