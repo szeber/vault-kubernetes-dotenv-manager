@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func PopulateSecrets(appConfig config.Config) {
+func PopulateSecrets(appConfig config.Config, waitSeconds int) {
 	apiClient := getClient(appConfig, "")
 
 	glog.Info("Starting secret population")
@@ -44,6 +44,12 @@ func PopulateSecrets(appConfig config.Config) {
 
 	data.Save(appConfig.DataDir, dataToSave)
 	glog.Info("Finished secret population")
+
+	if waitSeconds > 0 {
+		glog.Infof("Sleeping for %d seconds", waitSeconds)
+		time.Sleep(time.Duration(waitSeconds) * time.Second)
+		glog.Info("Done sleeping")
+	}
 }
 
 func getSecretFromVault(apiClient *api.Client, defintion config.SecretDefinition, savedData *data.SavedData) map[string]string {

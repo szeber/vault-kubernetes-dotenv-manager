@@ -15,6 +15,7 @@ import (
 var configPath = flag.String("config", "config.yaml", "The path to the config file")
 var mode = flag.String("mode", "", "The operating mode. Optional. Valid values are 'populate' or 'keep-alive'. Defaults to doing both operations")
 var httpPort = flag.Int("http-port", 8000, "The HTTP port for liveness and readiness checks")
+var waitAfterPopulationSeconds = flag.Int("wait-after-population", 0, "The number of seconds to wait after populating the secrets before exiting or going into keep-alive mode")
 
 func main() {
 	// Set default values
@@ -36,11 +37,11 @@ func main() {
 
 	switch *mode {
 	case "":
-		secret_manager.PopulateSecrets(appConfig)
+		secret_manager.PopulateSecrets(appConfig, *waitAfterPopulationSeconds)
 		revokeAuthLeaseOnQuit(appConfig)
 		secret_manager.KeepSecretsAlive(appConfig, *httpPort)
 	case constants.ModePopulate:
-		secret_manager.PopulateSecrets(appConfig)
+		secret_manager.PopulateSecrets(appConfig, *waitAfterPopulationSeconds)
 	case constants.ModeKeepAlive:
 		revokeAuthLeaseOnQuit(appConfig)
 		secret_manager.KeepSecretsAlive(appConfig, *httpPort)
