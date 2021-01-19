@@ -19,8 +19,8 @@ var waitAfterPopulationSeconds = flag.Int("wait-after-population", 0, "The numbe
 
 func main() {
 	// Set default values
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "Info")
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("stderrthreshold", "Info")
 	flag.Parse()
 
 	if !helper.StringInSlice(constants.ValidModes[:], *mode) {

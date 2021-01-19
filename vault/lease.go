@@ -5,7 +5,7 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-func RenewLease(apiClient *api.Client, secret api.Secret) *api.Secret {
+func RenewLease(apiClient *api.Client, secret api.Secret) (*api.Secret, error) {
 	request := apiClient.NewRequest("PUT", "/v1/sys/leases/renew")
 	body := map[string]interface{}{
 		"lease_id":  secret.LeaseID,
@@ -14,22 +14,25 @@ func RenewLease(apiClient *api.Client, secret api.Secret) *api.Secret {
 	err := request.SetJSONBody(body)
 
 	if err != nil {
-		glog.Exit("Failed to set body for lease renewal request: ", err)
+		glog.Error("Failed to set body for lease renewal request: ", err)
+		return nil, err
 	}
 
 	response, err := apiClient.RawRequest(request)
 
 	if err != nil {
-		glog.Exit("Failed to renew lease for secret: ", err)
+		glog.Error("Failed to renew lease for secret: ", err)
+		return nil, err
 	}
 
 	createdSecret, err := api.ParseSecret(response.Body)
 
 	if err != nil {
-		glog.Exit("Failed to create secret while renewing lease: ", err)
+		glog.Error("Failed to create secret while renewing lease: ", err)
+		return nil, err
 	}
 
-	return createdSecret
+	return createdSecret, nil
 }
 
 func RevokeTokenLease(apiClient *api.Client) {
@@ -44,20 +47,22 @@ func RevokeTokenLease(apiClient *api.Client) {
 	glog.Info("Token lease revocation complete")
 }
 
-func RenewTokenLease(apiClient *api.Client) int {
+func RenewTokenLease(apiClient *api.Client) (int, error) {
 	glog.V(1).Info("Renewing token lease")
 	request := apiClient.NewRequest("POST", "/v1/auth/token/renew-self")
 	result, err := apiClient.RawRequest(request)
 
 	if err != nil {
-		glog.Exit("Failed to renew lease: ", err)
+		glog.Error("Failed to renew lease: ", err)
+		return 0, err
 	}
 
 	secret, err := api.ParseSecret(result.Body)
 
 	if err != nil {
-		glog.Exit("Failed to create secret while renewing lease: ", err)
+		glog.Error("Failed to create secret while renewing lease: ", err)
+		return 0, err
 	}
 
-	return secret.Auth.LeaseDuration
+	return secret.Auth.LeaseDuration, nil
 }

@@ -31,32 +31,33 @@ func runRenewal(appConfig config.Config, savedData *data.SavedData) {
 		time.Sleep(nextProcessingTime.Sub(time.Now()))
 	}
 
-	renewSecrets(savedData, appConfig)
+	if err := renewSecrets(savedData, appConfig); err != nil {
+		if time.Now().After(savedData.GetTimeOfShortestExpiration().Add(-5 * time.Second)) {
+			glog.Warning("Error while renewing secrets. Sleeping for 5 seconds before trying again")
+			time.Sleep(5 * time.Second)
+		} else {
+			glog.Exit("Failed to renew the secrets, giving up: ", err)
+		}
+	}
 
 	data.Save(appConfig.DataDir, *savedData)
 }
 
 func getNextSecretToRenew(savedData *data.SavedData) int64 {
-	nextProcessingTimestamp := int64(savedData.CreationTimestamp + (savedData.AuthLeaseDuration / constants.LifetimeDivisor))
-
-	for _, secretData := range savedData.Secrets {
-		if secretData.Renewable && secretData.LeaseDuration > 0 {
-			secretNextProcessingTime := savedData.CreationTimestamp + (secretData.LeaseDuration / constants.LifetimeDivisor)
-			if int64(secretNextProcessingTime) < nextProcessingTimestamp {
-				nextProcessingTimestamp = int64(savedData.CreationTimestamp + (secretData.LeaseDuration / constants.LifetimeDivisor))
-			}
-		}
-	}
-
-	return nextProcessingTimestamp
+	return int64(savedData.CreationTimestamp + (savedData.GetShortestExpirationSeconds() / constants.LifetimeDivisor))
 }
 
-func renewSecrets(savedData *data.SavedData, appConfig config.Config) {
+func renewSecrets(savedData *data.SavedData, appConfig config.Config) error {
 	glog.Info("Starting lease renewals")
 
 	apiClient := getClient(appConfig, savedData.LoginToken)
-	savedData.CreationTimestamp = int(time.Now().UTC().Unix())
-	apiClientAuthLifetimeSeconds = vault.RenewTokenLease(apiClient)
+	newCreationTimestamp := int(time.Now().UTC().Unix())
+	apiClientAuthLifetimeSeconds, err := vault.RenewTokenLease(apiClient)
+
+	if nil != err {
+		return err
+	}
+
 	apiClientAuthLifetime = time.Now().Add(time.Second * time.Duration(apiClientAuthLifetimeSeconds))
 	renewedSecretCount := 0
 
@@ -65,7 +66,14 @@ func renewSecrets(savedData *data.SavedData, appConfig config.Config) {
 	for key, secretData := range savedData.Secrets {
 		if secretData.Renewable {
 			glog.V(1).Info("Renewing lease " + secretData.LeaseID)
-			savedData.Secrets[key] = *vault.RenewLease(apiClient, secretData)
+			newSecret, err := vault.RenewLease(apiClient, secretData)
+
+			if nil != err {
+				return err
+			}
+
+			savedData.Secrets[key] = *newSecret
+
 			glog.V(1).Info(
 				"Lease renewed. New validity: ",
 				time.Now().Add(time.Second*time.Duration(int64(savedData.Secrets[key].LeaseDuration))),
@@ -74,5 +82,8 @@ func renewSecrets(savedData *data.SavedData, appConfig config.Config) {
 		}
 	}
 
+	savedData.CreationTimestamp = newCreationTimestamp
 	glog.Infof("Renewed %d secret leases", renewedSecretCount)
+
+	return nil
 }

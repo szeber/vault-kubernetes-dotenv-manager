@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 type SavedData struct {
@@ -14,6 +15,22 @@ type SavedData struct {
 	LoginToken        string       `yaml:"LoginToken"`
 	AuthLeaseDuration int          `yaml:"AuthLeaseDuration"`
 	Secrets           []api.Secret `yaml:"secrets"`
+}
+
+func (s *SavedData) GetShortestExpirationSeconds() int {
+	shortest := s.AuthLeaseDuration
+
+	for _, secretData := range s.Secrets {
+		if secretData.Renewable && secretData.LeaseDuration > 0 && shortest > secretData.LeaseDuration {
+			shortest = secretData.LeaseDuration
+		}
+	}
+
+	return shortest
+}
+
+func (s *SavedData) GetTimeOfShortestExpiration() time.Time {
+	return time.Unix(int64(s.CreationTimestamp+s.GetShortestExpirationSeconds()), 0)
 }
 
 func Load(basePath string) SavedData {
