@@ -35,6 +35,8 @@ func PopulateSecrets(appConfig config.Config, waitSeconds int) {
 			secretData = getSecretFromVault(apiClient, definition, &dataToSave)
 		case constants.OriginFile:
 			secretData = getSecretFromFile(definition)
+		case constants.OriginToken:
+			secretData = map[string]string{"token": apiClient.Token()}
 		default:
 			panic("Invalid origin: " + definition.Origin)
 		}

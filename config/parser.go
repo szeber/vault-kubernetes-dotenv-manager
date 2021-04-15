@@ -118,22 +118,22 @@ func prepareAndValidateDataDir(dataDir string, errors *[]string) {
 }
 
 func validateSecret(secret *SecretDefinition, i int, errors *[]string) {
+	if "" == secret.Origin {
+		secret.Origin = constants.OriginVault
+	} else if !helper.StringInSlice(constants.ValidOrigins[:], secret.Origin) {
+		*errors = append(*errors, fmt.Sprintf("Invalid origin for secret #%d: %s", i, secret.Origin))
+	}
+
 	if "" == secret.Name {
 		*errors = append(*errors, fmt.Sprintf("No name for secret #%d", i))
 	}
 
-	if "" == secret.Source {
+	if "" == secret.Source && secret.Origin != constants.OriginToken {
 		*errors = append(*errors, fmt.Sprintf("No source for secret #%d", i))
 	}
 
 	if "" == secret.Destination {
 		*errors = append(*errors, fmt.Sprintf("No destination for secret #%d", i))
-	}
-
-	if "" == secret.Origin {
-		secret.Origin = constants.OriginVault
-	} else if !helper.StringInSlice(constants.ValidOrigins[:], secret.Origin) {
-		*errors = append(*errors, fmt.Sprintf("Invalid origin for secret #%d: %s", i, secret.Origin))
 	}
 
 	if !helper.StringInSlice(constants.ValidFormats[:], secret.Format) {

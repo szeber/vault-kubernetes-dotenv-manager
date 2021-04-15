@@ -7,7 +7,7 @@ vaultAuthMethodPath: kubernetes # The auth path where the kubernetes authenticat
 
 secrets:
 - name: dotenv # Informational name of the secret - used in the logs
-  origin: file # file or vault. Defaults to vault if not set
+  origin: file # file, token or vault. Defaults to vault if not set
   format: file # file or dotenv. File stores each value in the secret in a separate file with the file name being the key, and the value is the content
   source: kv/data/dotenv # The source path for the secret. For vault the URL path for the data, for file it's the path to the file
   destination: /dotenv/.env # The destination path for the secret. For file formats it's a directory to place the files in, for dotenv format the file to store the data in
