@@ -51,10 +51,6 @@ func main() {
 }
 
 func revokeAuthLeaseOnQuit(appConfig config.Config) {
-	if !appConfig.RevokeAuthLeaseOnQuit {
-		return
-	}
-
 	sigs := make(chan os.Signal, 1)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -62,8 +58,10 @@ func revokeAuthLeaseOnQuit(appConfig config.Config) {
 	go func() {
 		sig := <-sigs
 		glog.Info("Signal received, shutting down: ", sig)
-		glog.Info("Revoking auth lease")
-		secret_manager.RevokeAuthLease(appConfig)
+		if appConfig.RevokeAuthLeaseOnQuit {
+			glog.Info("Revoking auth lease")
+			secret_manager.RevokeAuthLease(appConfig)
+		}
 		os.Exit(0)
 	}()
 }
