@@ -33,10 +33,10 @@ func runRenewal(appConfig config.Config, savedData *data.SavedData) {
 
 	if err := renewSecrets(savedData, appConfig); err != nil {
 		if time.Now().After(savedData.GetTimeOfShortestExpiration().Add(-5 * time.Second)) {
+			glog.Exit("Failed to renew the secrets, giving up: ", err)
+		} else {
 			glog.Warning("Error while renewing secrets. Sleeping for 5 seconds before trying again")
 			time.Sleep(5 * time.Second)
-		} else {
-			glog.Exit("Failed to renew the secrets, giving up: ", err)
 		}
 	}
 
