@@ -36,10 +36,10 @@ func formatDotenvSecret(secretData map[string]string, definition config.SecretDe
 	stringToWrite := "\n" + strings.Repeat("#", len(headerText)+4) + "\n# " + headerText + " #\n" + strings.Repeat("#", len(headerText)+4) + "\n"
 
 	if !helper.FileExists(path.Dir(definition.Destination)) {
-		err := os.MkdirAll(path.Dir(definition.Destination), 0755)
+		err := os.MkdirAll(path.Dir(definition.Destination), definition.DirectoryMode)
 
 		if err != nil {
-			glog.Exit("Failed to crate desitnation directory for secret "+definition.Name+": ", err)
+			glog.Exit("Failed to crate destination directory for secret "+definition.Name+": ", err)
 		}
 	}
 
@@ -53,7 +53,7 @@ func formatDotenvSecret(secretData map[string]string, definition config.SecretDe
 		stringToWrite = stringToWrite + key + "=" + strconv.Quote(string(decodedValue)) + "\n"
 	}
 
-	f, err := os.OpenFile(definition.Destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(definition.Destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, definition.FileMode)
 
 	if err != nil {
 		glog.Exit("Failed to open destination file for writing for secret "+definition.Name+": ", err)
@@ -70,7 +70,7 @@ func formatDotenvSecret(secretData map[string]string, definition config.SecretDe
 
 func formatFileSecret(secretData map[string]string, definition config.SecretDefinition, dec *decoder.Decoder) {
 	if !helper.FileExists(definition.Destination) {
-		err := os.MkdirAll(definition.Destination, 0755)
+		err := os.MkdirAll(definition.Destination, definition.DirectoryMode)
 
 		if err != nil {
 			glog.Exit("Failed to create destination directory for secret " + definition.Name)
@@ -88,7 +88,7 @@ func formatFileSecret(secretData map[string]string, definition config.SecretDefi
 			glog.Exitf("Failed to decode value for %s in secret %s: %v", key, definition.Name, err)
 		}
 
-		err = ioutil.WriteFile(definition.Destination+"/"+key, decodedValue, 0644)
+		err = ioutil.WriteFile(definition.Destination+"/"+key, decodedValue, definition.FileMode)
 
 		if err != nil {
 			glog.Exit("Failed to write file "+key+" for secret "+definition.Name+": ", err)

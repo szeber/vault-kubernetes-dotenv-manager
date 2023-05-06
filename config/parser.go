@@ -16,7 +16,7 @@ type Config struct {
 	TokenPath             string             `yaml:"tokenPath"`
 	Namespace             string             `yaml:"namespace"`
 	Role                  string             `yaml:"role"`
-	VaulAuthMethodPath    string             `yaml:"vaultAuthMethodPath"`
+	VaultAuthMethodPath   string             `yaml:"vaultAuthMethodPath"`
 	RevokeAuthLeaseOnQuit bool               `yaml:"revokeAuthLeaseOnQuit"`
 	Secrets               []SecretDefinition `yaml:"secrets"`
 }
@@ -27,6 +27,8 @@ type SecretDefinition struct {
 	Source        string            `yaml:"source"`
 	Destination   string            `yaml:"destination"`
 	Format        string            `yaml:"format"`
+	FileMode      os.FileMode       `yaml:"fileMode"`
+	DirectoryMode os.FileMode       `yaml:"directoryMode"`
 	SecretBaseKey string            `yaml:"secretBaseKey"`
 	Mapping       map[string]string `yaml:"mapping"`
 	Decoders      []string          `yaml:"decoders"`
@@ -79,7 +81,7 @@ func validateConfig(config Config) {
 		errors = append(errors, "No role set")
 	}
 
-	if "" == config.VaulAuthMethodPath {
+	if "" == config.VaultAuthMethodPath {
 		errors = append(errors, "No Vault auth method path set")
 	}
 
@@ -134,6 +136,14 @@ func validateSecret(secret *SecretDefinition, i int, errors *[]string) {
 
 	if "" == secret.Destination {
 		*errors = append(*errors, fmt.Sprintf("No destination for secret #%d", i))
+	}
+
+	if 0 == secret.DirectoryMode {
+		secret.DirectoryMode = 0755
+	}
+
+	if 0 == secret.FileMode {
+		secret.FileMode = 0644
 	}
 
 	if !helper.StringInSlice(constants.ValidFormats[:], secret.Format) {

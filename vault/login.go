@@ -136,7 +136,7 @@ func getAuthConfigFromAppConfig(appConfig config.Config) AuthConfig {
 		Url:                 appConfig.VaultUrl,
 		Namespace:           appConfig.Namespace,
 		KubeAuthRole:        appConfig.Role,
-		KubeAuthPath:        appConfig.VaulAuthMethodPath,
+		KubeAuthPath:        appConfig.VaultAuthMethodPath,
 		ServiceAccountToken: string(authToken),
 	}
 }

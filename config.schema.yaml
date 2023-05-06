@@ -1,0 +1,130 @@
+$id: http://service-registry.core.localdomain/schemas/config_service_schema.yaml
+$schema: http://json-schema.org/draft-07/schema
+additionalProperties: false
+description: Schema for the vault kubernetes dotenv manager configuration
+required:
+  - dataDir
+  - vaultUrl
+  - role
+  - vaultAuthMethodPath
+  - secrets
+title: Vault kubernetes dotenv manager config
+type: object
+properties:
+  dataDir:
+    description: |
+      The path to the data directory to use. The data directory is used to store sensitive information, so its 
+      permissions should be set to be secure. If this is a kubernetes volume, it should be in memory.
+    type: string
+  vaultUrl:
+    description: The URL to the vault instance to connect to
+    type: string
+  tokenPath:
+    default: /var/run/secrets/kubernetes.io/serviceaccount/token
+    description: Path to the file storing the authentication token.
+    type: string
+  namespace:
+    default: default
+    description: The kubernetes namespace to use while authenticating
+    type: string
+  role:
+    description: The vault role to authenticate as
+    type: string
+  revokeAuthLeaseOnQuit:
+    description: |
+      If set to TRUE, the auth lease will be revoked in vault when the application exits. NOTE If not using keep-alive 
+      mode, this will mean that the vault token and any dynamic secrets get revoked after the manager exits.
+    default: false
+    type: boolean
+  vaultAuthMethodPath:
+    description: The auth path in vault to use for kubernetes authentication
+    type: string
+  secrets:
+    description: The definitions for the managed secrets
+    type: array
+    items:
+      additionalProperties: false
+      required:
+        - name
+        - format
+        - destination
+      type: object
+      properties:
+        name:
+          description: Human readable name for the secret. Will be used in error messages
+          type: string
+        origin:
+          description: |
+            The source for this secret. "token" for the vault authentication token, "file" if a file in the filesystem,
+            or "vault" if the source is a vault secret. NOTE that the token and dynamic vault secrets will expire if the 
+            manager is not keeping them alive
+          default: vault
+          enum:
+            - file
+            - token
+            - vault
+          type: string
+        format:
+          description: |
+            The output format for the secret. Can be either "dotenv" to put the values into a file in .env format or 
+            "file" to place the secret values into individual files, where the file name will be the key of the secret.
+          enum:
+            - dotenv
+            - file
+          type: string
+        directoryMode:
+          description: |
+            The filesystem mode (unix permissions) of the directory to place the secrets in. Only applies if the 
+            directory will be created by the manager. Must be in octal notation (0755, 0644, etc). Note the umask will 
+            be still applied on top of this permission. Defaults to 0755
+          default: 0755
+          type: integer
+        fileMode:
+          description: |
+            The filesystem mode (unix permissions) of any created files. Only applies to files created while populating 
+            this secret. Must be in octal notation (0755, 0644, etc). Note the umask will be still applied on top of 
+            this permission. Defaults to 0644
+          default: 0644
+          type: integer
+        source:
+          description: |
+            Source path for the secret. For vault source secrets this is the path for the secret in vault, for file 
+            source secrets it's the path to the source file. Token source secrets don't use it. Required for file and 
+            vault secrets.
+          type: string
+        destination:
+          description: |
+            The path to where to populate the secret. For dotenv format secrets, it's the path to the .env file, for 
+            file format secrets it's the path to the directory where to crate the files.
+          type: string
+        secretBaseKey:
+          description: |
+            If the secret source stores the secret in a sub object, then the key for the sub object is set here. 
+            Typically used with a vault kv type secret, which responds with an object, where the actual secret data is 
+            stored under a base key called "data".
+          default: ""
+          type: string
+        mapping:
+          description: |
+            If the secret keys need to be mapped to something else in the target, this object should store the mappings 
+            in an object with the key being the destination/mapped key, and the value the source key in the secret. If 
+            mapping is used, only the mapped keys from the secret will be populated.
+          default: {}
+          patternProperties:
+            ".*":
+              description: |
+                Key is the key/filename to save the value as in the destination, the value is the key in the secret.
+              type: string
+          type: object
+        decoders:
+          description: |
+            If the secret values are encoded, and need to be decoded before population, the decoders can be set here. 
+            Multiple decoders are supported, and the decoders will be used in the order they are listed here. By default 
+            no decoders are used.
+          default: []
+          items:
+            enum:
+              - base64
+            type: string
+          type: array
+
