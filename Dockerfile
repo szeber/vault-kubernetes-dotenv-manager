@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.14 AS build-env
+FROM golang:1.19 AS build-env
 
 ADD . /go/src/app
 
